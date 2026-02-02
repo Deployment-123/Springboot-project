@@ -7,11 +7,23 @@ pipeline {
     }
 
     environment {
-        APP_NAME = "springboot-project"
-        DEV_PORT = "8084"
+        APP_NAME     = "springboot-project"
+        DEV_PORT     = "8084"
+        DEPLOY_DIR   = "/opt/apps/dev/springboot-project"
+        SERVICE_NAME = "springboot-project-dev"
+    }
+
+    triggers {
+        githubPush()
     }
 
     stages {
+
+        stage('Checkout Code') {
+            steps {
+                checkout scm
+            }
+        }
 
         stage('Build & Test & Coverage') {
             steps {
@@ -41,7 +53,6 @@ pipeline {
             }
         }
 
-
         stage('Package') {
             steps {
                 sh 'mvn clean package -DskipTests'
@@ -51,31 +62,37 @@ pipeline {
         stage('Deploy to DEV') {
             steps {
                 sh '''
-                echo "Stopping application running on port ${DEV_PORT} (if any)..."
-                PID=$(lsof -t -i:${DEV_PORT}) || true
-                if [ -n "$PID" ]; then
-                kill -9 $PID
-                fi
+                echo "Deploying ${APP_NAME} to DEV..."
 
-                echo "Starting application on DEV..."
-                nohup java -jar target/EventManagementSystem-0.0.1-SNAPSHOT.jar \
-                --spring.profiles.active=dev \
-                --server.port=${DEV_PORT} \
-                --server.address=0.0.0.0 \
-                > dev.log 2>&1 &
+                echo "Copying JAR to ${DEPLOY_DIR}"
+                cp target/EventManagementSystem-0.0.1-SNAPSHOT.jar \
+                   ${DEPLOY_DIR}/springboot-project.jar
+
+                echo "Restarting systemd service: ${SERVICE_NAME}"
+                sudo systemctl restart ${SERVICE_NAME}
                 '''
             }
         }
 
-
         stage('Sanity Test') {
             steps {
                 sh '''
-                echo "Waiting for app to start..."
+                echo "Waiting for application to start..."
                 sleep 20
-                curl -f http://localhost:${DEV_PORT}/h2-console || exit 1
+
+                echo "Running sanity check on DEV..."
+                curl -f http://localhost:${DEV_PORT}/h2-console
                 '''
             }
+        }
+    }
+
+    post {
+        success {
+            echo "${APP_NAME} deployed successfully to DEV"
+        }
+        failure {
+            echo "${APP_NAME} deployment failed"
         }
     }
 }
