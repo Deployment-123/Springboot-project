@@ -59,6 +59,7 @@ pipeline {
 
                 echo "Starting application on DEV..."
                 nohup java -jar target/EventManagementSystem-0.0.1-SNAPSHOT.jar \
+                --spring.profiles.active=dev \
                 --server.port=${DEV_PORT} \
                 > dev.log 2>&1 &
                 '''
