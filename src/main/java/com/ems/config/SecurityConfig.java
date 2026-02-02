@@ -25,23 +25,24 @@ public class SecurityConfig {
 
         http
             .cors(cors -> {})
-            // H2 console needs CSRF disabled for its path
-            .csrf(csrf -> csrf
-                .ignoringRequestMatchers("/h2-console/**")
-            )
-            // Allow frames for H2 console
+            // DISABLE CSRF COMPLETELY (required for JWT APIs)
+            .csrf(csrf -> csrf.disable())
+
+            // H2 console uses frames
             .headers(headers -> headers
                 .frameOptions(frame -> frame.sameOrigin())
             )
+
             .sessionManagement(session ->
                 session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
             )
+
             .authorizeHttpRequests(auth -> auth
 
                 // H2 CONSOLE (DEV ONLY)
                 .requestMatchers("/h2-console/**").permitAll()
 
-                // PUBLIC
+                // PUBLIC AUTH APIs
                 .requestMatchers(HttpMethod.POST, "/api/user/register").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/user/login").permitAll()
 
